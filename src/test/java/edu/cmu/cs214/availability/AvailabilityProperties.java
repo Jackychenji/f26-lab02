@@ -1,5 +1,6 @@
 package edu.cmu.cs214.availability;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.util.List;
@@ -34,6 +35,39 @@ class AvailabilityProperties {
     }
 
     // --- Milestone 1: add your stronger property here ---
+
+    /**
+     * Full correctness: every minute of the business day is either covered by a
+     * booking or reported as free, never both and never neither.
+     *
+     * <p>The provided property only checks one direction (nothing returned is busy).
+     * This one adds the other direction (nothing free is left out), which is what
+     * makes it a specification rather than a sanity check.
+     */
+    @Property
+    void everyMinuteIsEitherBookedOrFreeExactlyOnce(@ForAll("scenarios") Scenario s) {
+        List<TimeInterval> free = calc.freeSlots(s.dayStart(), s.dayEnd(), s.bookings());
+        for (int minute = s.dayStart(); minute < s.dayEnd(); minute++) {
+            boolean booked = covers(s.bookings(), minute);
+            boolean reportedFree = covers(free, minute);
+            int m = minute;
+            assertEquals(booked, !reportedFree,
+                () -> "minute " + m + " is " + (booked ? "booked" : "not booked")
+                    + " but was " + (reportedFree ? "" : "not ") + "reported free"
+                    + "; day=[" + s.dayStart() + ", " + s.dayEnd() + ")"
+                    + " bookings=" + s.bookings() + " free=" + free);
+        }
+    }
+
+    /** Does any interval in {@code intervals} contain {@code minute}? */
+    private static boolean covers(List<TimeInterval> intervals, int minute) {
+        for (TimeInterval i : intervals) {
+            if (i.start() <= minute && minute < i.end()) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /** Generates a business day plus a list of bookings (possibly unsorted, overlapping, or outside hours). */
     @Provide
